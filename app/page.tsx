@@ -1,16 +1,17 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from './supabaseClient'
 
 interface Post {
-  id: number
-  author: string
-  role: string
+  id: string | number
+  author_name: string
+  author_role: string
   avatar: string
   content: string
   likes: number
   comments: number
-  time: string
+  created_at?: string
   tag?: string
 }
 
@@ -42,34 +43,77 @@ export default function Home() {
   const [tournamentSubTab, setTournamentSubTab] = useState<'posiciones' | 'fixture' | 'reglas'>('posiciones')
   const [selectedCategory, setSelectedCategory] = useState<'deportes' | 'esports'>('esports')
   const [newPostText, setNewPostText] = useState('')
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(true)
 
-  // Publicaciones de ejemplo estilo Facebook
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: 1,
-      author: 'Ángel Toledo',
-      role: 'Organizador eSports',
-      avatar: 'Á',
-      content: '¡Inscripciones abiertas para el Torneo Wild Rift 1v1 ARAM! 🏆 Recuerden que no hay bans, campeones Ornn y Ziggs prohibidos. ¡Premio de 1425 Wild Cores al 1° Lugar!',
-      likes: 24,
-      comments: 8,
-      time: 'Hace 15 min',
-      tag: 'Torneos Wild Rift'
-    },
-    {
-      id: 2,
-      author: 'Academia Sady FC',
-      role: 'Club Deportivo',
-      avatar: 'S',
-      content: 'Convocatoria abierta para la categoría Sub-18 este sábado. Buscamos mediocampistas y delanteros para la Copa Local. ¡Inscríbete gratis desde la app!',
-      likes: 42,
-      comments: 12,
-      time: 'Hace 2 horas',
-      tag: 'Fútbol Campo'
+  // Cargar publicaciones desde Supabase al iniciar
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
+  const fetchPosts = async () => {
+    try {
+      setLoadingPosts(true)
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error cargando posts:', error)
+      } else if (data && data.length > 0) {
+        setPosts(data)
+      } else {
+        // Datos por defecto si aún no hay publicaciones en la BD
+        setPosts([
+          {
+            id: '1',
+            author_name: 'Ángel Toledo',
+            author_role: 'Organizador eSports',
+            avatar: 'Á',
+            content: '¡Inscripciones abiertas para el Torneo Wild Rift 1v1 ARAM! 🏆 Recuerden que no hay bans, campeones Ornn y Ziggs prohibidos. ¡Premio de 1425 Wild Cores al 1° Lugar!',
+            likes: 24,
+            comments: 8,
+            tag: 'Torneos Wild Rift'
+          }
+        ])
+      }
+    } catch (err) {
+      console.error('Error de conexión:', err)
+    } finally {
+      setLoadingPosts(false)
     }
-  ])
+  }
 
-  // Datos del torneo estilo Copa Fácil
+  // Guardar nueva publicación en Supabase
+  const handleCreatePost = async () => {
+    if (!newPostText.trim()) return
+
+    const newPostData = {
+      author_name: 'Usuario Activo',
+      author_role: 'Jugador Pro',
+      avatar: 'U',
+      content: newPostText,
+      likes: 0,
+      comments: 0,
+      tag: 'Comunidad'
+    }
+
+    // Insertar en la BD
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([newPostData])
+      .select()
+
+    if (error) {
+      alert('Error al publicar: ' + error.message)
+    } else if (data) {
+      setPosts([data[0], ...posts])
+      setNewPostText('')
+    }
+  }
+
+  // Datos locales de ejemplo para la sección de Torneos
   const [teams] = useState<Team[]>([
     { id: 1, name: 'Sady FC', pj: 3, pg: 2, pe: 1, pp: 0, gf: 7, gc: 2, pts: 7 },
     { id: 2, name: 'Daysa Grace Academy', pj: 3, pg: 2, pe: 0, pp: 1, gf: 5, gc: 3, pts: 6 },
@@ -84,26 +128,9 @@ export default function Home() {
     { id: 4, round: 'Fecha 2', teamA: 'Daysa Grace Academy', teamB: 'Phoenix Wild Rift', scoreA: null, scoreB: null, date: 'Sábado 19:30', status: 'Programado' },
   ])
 
-  const handleCreatePost = () => {
-    if (!newPostText.trim()) return
-    const newPost: Post = {
-      id: Date.now(),
-      author: 'Usuario Activo',
-      role: 'Jugador Pro',
-      avatar: 'U',
-      content: newPostText,
-      likes: 0,
-      comments: 0,
-      time: 'Justo ahora',
-      tag: 'Comunidad'
-    }
-    setPosts([newPost, ...posts])
-    setNewPostText('')
-  }
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-      {/* Header estilo Red Social */}
+      {/* Header */}
       <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
           Sports & Esports Network
@@ -165,7 +192,7 @@ export default function Home() {
       {/* Contenido Principal */}
       <main className="max-w-3xl mx-auto p-4 space-y-6">
 
-        {/* MÓDULO 1: FEED SOCIAL (Estilo Facebook) */}
+        {/* FEED SOCIAL */}
         {activeTab === 'feed' && (
           <div className="space-y-5">
             {/* Creador de Publicaciones */}
@@ -183,7 +210,7 @@ export default function Home() {
                 />
               </div>
               <div className="flex justify-between items-center border-t border-slate-800/80 pt-2 text-xs">
-                <span className="text-slate-400">📷 Publicar fotos, videos o resultados</span>
+                <span className="text-slate-400">⚡ Guardado instantáneo en la Base de Datos</span>
                 <button
                   onClick={handleCreatePost}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-1.5 rounded-lg transition-all"
@@ -193,7 +220,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Banner Monetización / Referidos */}
+            {/* Banner Monetización */}
             <div className="bg-gradient-to-r from-emerald-950 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow">
               <div>
                 <span className="bg-emerald-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5 rounded uppercase">
@@ -212,45 +239,49 @@ export default function Home() {
 
             {/* Muro de Publicaciones */}
             <div className="space-y-4">
-              {posts.map((post) => (
-                <div key={post.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-emerald-400">
-                        {post.avatar}
+              {loadingPosts ? (
+                <p className="text-center text-xs text-slate-500 py-4">Cargando publicaciones desde la base de datos...</p>
+              ) : (
+                posts.map((post) => (
+                  <div key={post.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 shadow">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-emerald-400">
+                          {post.avatar || 'U'}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm text-slate-100">{post.author_name}</h3>
+                          <p className="text-[11px] text-slate-400">{post.author_role}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-sm text-slate-100">{post.author}</h3>
-                        <p className="text-[11px] text-slate-400">{post.role} • {post.time}</p>
-                      </div>
+                      {post.tag && (
+                        <span className="text-[10px] bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-full font-semibold border border-slate-700">
+                          {post.tag}
+                        </span>
+                      )}
                     </div>
-                    {post.tag && (
-                      <span className="text-[10px] bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-full font-semibold border border-slate-700">
-                        {post.tag}
-                      </span>
-                    )}
-                  </div>
 
-                  <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">{post.content}</p>
+                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">{post.content}</p>
 
-                  <div className="flex justify-between items-center border-t border-slate-800/80 pt-3 text-xs text-slate-400 font-medium">
-                    <button className="hover:text-emerald-400 flex items-center gap-1">
-                      👍 {post.likes} Me gusta
-                    </button>
-                    <button className="hover:text-emerald-400 flex items-center gap-1">
-                      💬 {post.comments} Comentarios
-                    </button>
-                    <button className="hover:text-emerald-400 flex items-center gap-1">
-                      ↪️ Compartir
-                    </button>
+                    <div className="flex justify-between items-center border-t border-slate-800/80 pt-3 text-xs text-slate-400 font-medium">
+                      <button className="hover:text-emerald-400 flex items-center gap-1">
+                        👍 {post.likes} Me gusta
+                      </button>
+                      <button className="hover:text-emerald-400 flex items-center gap-1">
+                        💬 {post.comments} Comentarios
+                      </button>
+                      <button className="hover:text-emerald-400 flex items-center gap-1">
+                        ↪️ Compartir
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
 
-        {/* MÓDULO 2: TORNEOS ESTILO COPA FÁCIL */}
+        {/* MÓDULO TORNEOS */}
         {activeTab === 'torneos' && (
           <div className="space-y-5">
             <div className="flex gap-2 border-b border-slate-800 pb-3">
@@ -407,7 +438,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* MÓDULO 3: ACADEMIAS */}
+        {/* ACADEMIAS */}
         {activeTab === 'academias' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
             <h2 className="text-lg font-bold text-white">Directorio de Academias & Clubes</h2>
@@ -432,7 +463,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* MÓDULO 4: PERFIL Y MONETIZACIÓN */}
+        {/* MI PERFIL Y MONETIZACIÓN */}
         {activeTab === 'perfil' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
             <div className="flex items-center gap-4 border-b border-slate-800 pb-5">
@@ -445,7 +476,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Sistema de Enlace para Ganar Dinero */}
+            {/* Enlace de Referidos */}
             <div className="bg-slate-950 border border-emerald-500/30 p-4 rounded-xl space-y-3">
               <h3 className="font-bold text-sm text-emerald-400">💰 Tu Enlace de Referido Personal</h3>
               <p className="text-xs text-slate-300">Comparte este enlace para invitar nuevos usuarios, jugadores o academias. Obtendrás comisiones automáticas por sus registros e inscripciones.</p>
