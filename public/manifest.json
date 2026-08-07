@@ -1,11 +1,11 @@
 {
-  "name": "Sports & Esports Social",
-  "short_name": "SportsSocial",
-  "description": "Red social para deportistas y gamers",
+  "name": "Sports & Esports Network",
+  "short_name": "SportsApp",
+  "description": "Red Social y Gestión de Torneos para Deportes y Esports",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020617",
-  "theme_color": "#020617",
+  "theme_color": "#10b981",
   "icons": [
     {
       "src": "/favicon.ico",
