@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 
-// Tipos de datos para torneos
 interface Team {
   id: number
   name: string
@@ -28,10 +27,9 @@ interface Match {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'feed' | 'torneos' | 'academias' | 'perfil'>('torneos')
-  const [tournamentSubTab, setTournamentSubTab] = useState<'posiciones' | 'fixture' | 'goleadores' | 'reglas'>('posiciones')
+  const [tournamentSubTab, setTournamentSubTab] = useState<'posiciones' | 'fixture' | 'reglas'>('posiciones')
   const [selectedCategory, setSelectedCategory] = useState<'deportes' | 'esports'>('esports')
 
-  // Datos de ejemplo para la Tabla de Posiciones estilo Copa Fácil
   const [teams] = useState<Team[]>([
     { id: 1, name: 'Sady FC', pj: 3, pg: 2, pe: 1, pp: 0, gf: 7, gc: 2, pts: 7 },
     { id: 2, name: 'Daysa Grace Academy', pj: 3, pg: 2, pe: 0, pp: 1, gf: 5, gc: 3, pts: 6 },
@@ -39,7 +37,6 @@ export default function Home() {
     { id: 4, name: 'Phoenix Wild Rift', pj: 3, pg: 0, pe: 1, pp: 2, gf: 2, gc: 7, pts: 1 },
   ])
 
-  // Datos de ejemplo para el Fixture / Calendario
   const [matches] = useState<Match[]>([
     { id: 1, round: 'Fecha 1', teamA: 'Sady FC', teamB: 'Daysa Grace Academy', scoreA: 2, scoreB: 1, date: 'Ayer', status: 'Finalizado' },
     { id: 2, round: 'Fecha 1', teamA: 'Titan eSports', teamB: 'Phoenix Wild Rift', scoreA: 3, scoreB: 0, date: 'Ayer', status: 'Finalizado' },
@@ -49,7 +46,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-      {/* Header Principal */}
       <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
           Sports & Esports Network
@@ -59,7 +55,6 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Navegación Superior Estilo App */}
       <nav className="flex justify-around border-b border-slate-800 bg-slate-900/60 text-xs sm:text-sm font-medium">
         <button
           onClick={() => setActiveTab('feed')}
@@ -85,7 +80,8 @@ export default function Home() {
           onClick={() => setActiveTab('academias')}
           className={`py-3 px-3 border-b-2 transition-all ${
             activeTab === 'academias'
-              ? 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-emerald-500 text-emerald-400 font-bold'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           🏫 Academias
@@ -94,18 +90,17 @@ export default function Home() {
           onClick={() => setActiveTab('perfil')}
           className={`py-3 px-3 border-b-2 transition-all ${
             activeTab === 'perfil'
-              ? 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-emerald-500 text-emerald-400 font-bold'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
           👤 Mi Perfil
         </button>
       </nav>
 
-      {/* Contenido Principal */}
       <main className="max-w-4xl mx-auto p-4 space-y-6">
         {activeTab === 'torneos' && (
           <div className="space-y-5">
-            {/* Filtro Deportes vs Esports */}
             <div className="flex gap-2 border-b border-slate-800 pb-3">
               <button
                 onClick={() => setSelectedCategory('esports')}
@@ -129,7 +124,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Cabecera del Torneo Activo */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
               <div className="flex flex-wrap justify-between items-start gap-2">
                 <div>
@@ -137,7 +131,7 @@ export default function Home() {
                     {selectedCategory === 'esports' ? 'Torneo Wild Rift 1v1 ARAM' : 'Liga de Fútbol Campo Sub-18'}
                   </span>
                   <h2 className="text-xl font-bold text-white mt-1">
-                    {selectedCategory === 'esports' ? 'Torneo ARAM Flash Custom 2026' : 'Copa Torneo Local Sady FC'}
+                    {selectedCategory === 'esports' ? 'Torneo ARAM Flash Custom' : 'Copa Torneo Local Sady FC'}
                   </h2>
                 </div>
                 <span className="bg-emerald-950 border border-emerald-500/30 text-emerald-400 text-xs px-3 py-1 rounded-full font-medium">
@@ -145,7 +139,6 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* Pestañas estilo Copa Fácil */}
               <div className="flex gap-2 border-t border-slate-800 pt-3 text-xs sm:text-sm font-medium text-slate-400">
                 <button
                   onClick={() => setTournamentSubTab('posiciones')}
@@ -174,7 +167,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* VISTA 1: TABLA DE POSICIONES (Estilo Copa Fácil) */}
             {tournamentSubTab === 'posiciones' && (
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center">
@@ -219,7 +211,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* VISTA 2: FIXTURE & CALENDARIO */}
             {tournamentSubTab === 'fixture' && (
               <div className="space-y-3">
                 {matches.map((m) => (
@@ -240,7 +231,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* VISTA 3: REGLAS Y PREMIO DE TORNEO */}
             {tournamentSubTab === 'reglas' && (
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 text-xs sm:text-sm text-slate-300">
                 <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">
@@ -265,7 +255,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* OTROS MÓDULOS */}
         {activeTab === 'feed' && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-center text-slate-400">
             En el próximo paso conectaremos las publicaciones de muro estilo Facebook aquí.
