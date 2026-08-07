@@ -2,9 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Sports & Esports Social',
-  description: 'Red social PWA para deportes y eSports',
-  manifest: '/manifest.json',
+  title: 'Sports & Esports Network',
+  description: 'Red Social y Gestión de Torneos para Deportes y Esports',
 }
 
 export default function RootLayout({
@@ -16,7 +15,6 @@ export default function RootLayout({
     <html lang="es">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#020617" />
       </head>
       <body>{children}</body>
     </html>
