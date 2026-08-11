@@ -21,13 +21,19 @@ export default function Navbar() {
           <Link href="/torneos" className="hover:text-purple-400 transition-colors">
             🏆 Torneos
           </Link>
-          <Link href="/perfil" className="hover:text-green-400 transition-colors">
+          <Link href="/equipos" className="hover:text-green-400 transition-colors">
+            🛡️ Equipos
+          </Link>
+          <Link href="/perfil" className="hover:text-indigo-400 transition-colors">
             👤 Perfil
           </Link>
         </div>
 
         {/* Avatar rápido a Perfil */}
-        <Link href="/perfil" className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs border border-gray-700 hover:opacity-90 transition">
+        <Link 
+          href="/perfil" 
+          className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs border border-gray-700 hover:opacity-90 transition"
+        >
           AP
         </Link>
       </div>
