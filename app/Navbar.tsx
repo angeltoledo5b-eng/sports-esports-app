@@ -14,24 +14,22 @@ export default function Navbar() {
         </Link>
 
         {/* Menú Principal */}
-        <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-300">
+        <div className="flex items-center gap-6 text-sm font-semibold text-gray-300">
           <Link href="/" className="hover:text-blue-400 transition-colors">
             🏠 Feed
           </Link>
           <Link href="/torneos" className="hover:text-purple-400 transition-colors">
             🏆 Torneos
           </Link>
-          <Link href="#" className="hover:text-green-400 transition-colors">
-            🛡️ Equipos
+          <Link href="/perfil" className="hover:text-green-400 transition-colors">
+            👤 Perfil
           </Link>
         </div>
 
-        {/* Perfil / Acceso */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs border border-gray-700">
-            AP
-          </div>
-        </div>
+        {/* Avatar rápido a Perfil */}
+        <Link href="/perfil" className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs border border-gray-700 hover:opacity-90 transition">
+          AP
+        </Link>
       </div>
     </nav>
   );
