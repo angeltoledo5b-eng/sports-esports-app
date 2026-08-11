@@ -1,4 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
-
-module.exports = nextConfig;
+/** @type {import('next').NextStep} */
+const nextConfig = {
+    swcMinify: false,
+  };
+  
+  module.exports = nextConfig;
