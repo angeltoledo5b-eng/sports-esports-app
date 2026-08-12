@@ -5,6 +5,14 @@ import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import Link from 'next/link';
 
+interface Comment {
+  id: string;
+  post_id: string;
+  user_name: string;
+  content: string;
+  created_at: string;
+}
+
 interface Post {
   id: string;
   user_name: string;
@@ -12,6 +20,7 @@ interface Post {
   content: string;
   likes: number;
   created_at: string;
+  comments?: Comment[];
 }
 
 export default function Home() {
@@ -20,6 +29,8 @@ export default function Home() {
   const [content, setContent] = useState('');
   const [game, setGame] = useState('General');
   const [loading, setLoading] = useState(false);
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
 
   useEffect(() => {
     fetchPosts();
@@ -28,11 +39,14 @@ export default function Home() {
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('posts')
-      .select('*')
+      .select('*, comments(*)')
       .order('created_at', { ascending: false });
 
-    if (error) console.error('Error al cargar posts:', error);
-    if (data) setPosts(data);
+    if (error) {
+      console.error('Error al cargar posts:', error);
+    } else if (data) {
+      setPosts(data);
+    }
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -66,16 +80,35 @@ export default function Home() {
       .update({ likes: currentLikes + 1 })
       .eq('id', id);
 
+    if (!error) {
+      setPosts(posts.map((p) => (p.id === id ? { ...p, likes: (p.likes || 0) + 1 } : p)));
+    }
+  };
+
+  const handleAddComment = async (postId: string) => {
+    if (!commentText.trim() || !user) return;
+
+    const userName = user.email ? user.email.split('@')[0] : 'Usuario';
+
+    const { error } = await supabase.from('comments').insert([
+      {
+        post_id: postId,
+        user_name: userName,
+        content: commentText,
+      },
+    ]);
+
     if (error) {
-      console.error(error);
+      alert('Error al comentar: ' + error.message);
     } else {
-      setPosts(posts.map((p) => (p.id === id ? { ...p, likes: p.likes + 1 } : p)));
+      setCommentText('');
+      fetchPosts();
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Banner de Bienvenida o Publicación */}
+      {/* Formulario de publicación o Banner */}
       {user ? (
         <form onSubmit={handleCreatePost} className="bg-gray-900 border border-gray-800 p-5 rounded-2xl space-y-3">
           <div className="flex items-center justify-between">
@@ -150,6 +183,7 @@ export default function Home() {
 
             <p className="text-sm text-gray-300 leading-relaxed">{post.content}</p>
 
+            {/* Acciones del Post */}
             <div className="flex items-center gap-4 pt-2 border-t border-gray-800/60">
               <button
                 onClick={() => handleLike(post.id, post.likes || 0)}
@@ -157,7 +191,50 @@ export default function Home() {
               >
                 ❤️ <span>{post.likes || 0}</span>
               </button>
+
+              <button
+                onClick={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-400 transition font-medium"
+              >
+                💬 <span>{post.comments?.length || 0} Comentarios</span>
+              </button>
             </div>
+
+            {/* Sección de Comentarios Expansible */}
+            {activeCommentPostId === post.id && (
+              <div className="pt-3 space-y-3 border-t border-gray-800/40">
+                <div className="space-y-2">
+                  {post.comments && post.comments.length > 0 ? (
+                    post.comments.map((c) => (
+                      <div key={c.id} className="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80 text-xs space-y-1">
+                        <span className="font-bold text-blue-400">@{c.user_name}</span>
+                        <p className="text-gray-300">{c.content}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-gray-500 italic">No hay comentarios aún. ¡Sé el primero!</p>
+                  )}
+                </div>
+
+                {user && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Escribe un comentario..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => handleAddComment(post.id)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
