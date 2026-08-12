@@ -18,6 +18,7 @@ interface Post {
   user_name: string;
   game: string;
   content: string;
+  media_url?: string | null;
   likes: number;
   created_at: string;
   comments?: Comment[];
@@ -28,6 +29,7 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [content, setContent] = useState('');
   const [game, setGame] = useState('General');
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -51,9 +53,27 @@ export default function Home() {
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim() && !file) return;
 
     setLoading(true);
+    let mediaUrl: string | null = null;
+
+    // Subir imagen o video a Supabase Storage si seleccionó un archivo
+    if (file) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error al subir multimedia:', uploadError);
+      } else if (data) {
+        const { data: publicData } = supabase.storage.from('media').getPublicUrl(fileName);
+        mediaUrl = publicData.publicUrl;
+      }
+    }
+
     const userName = user?.email ? user.email.split('@')[0] : 'Usuario';
 
     const { error } = await supabase.from('posts').insert([
@@ -61,6 +81,7 @@ export default function Home() {
         user_name: userName,
         game,
         content,
+        media_url: mediaUrl,
         likes: 0,
       },
     ]);
@@ -69,6 +90,7 @@ export default function Home() {
       alert('Error al publicar: ' + error.message);
     } else {
       setContent('');
+      setFile(null);
       fetchPosts();
     }
     setLoading(false);
@@ -108,7 +130,7 @@ export default function Home() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Formulario de publicación o Banner */}
+      {/* Formulario de publicación */}
       {user ? (
         <form onSubmit={handleCreatePost} className="bg-gray-900 border border-gray-800 p-5 rounded-2xl space-y-3">
           <div className="flex items-center justify-between">
@@ -130,17 +152,28 @@ export default function Home() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="¿Qué torneo o jugada quieres compartir hoy?"
+            placeholder="¿Qué quieres compartir hoy? (Puedes adjuntar foto o Reel video)"
             className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition resize-none h-24"
           />
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between pt-2">
+            {/* Input de archivo multimedia (Fotos/Videos Reels) */}
+            <label className="flex items-center gap-2 cursor-pointer bg-gray-950 border border-gray-800 px-3 py-1.5 rounded-xl text-xs text-gray-300 hover:border-gray-700 transition">
+              📷 <span>{file ? file.name.substring(0, 15) + '...' : 'Adjuntar Imagen / Video'}</span>
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                className="hidden"
+              />
+            </label>
+
             <button
               type="submit"
-              disabled={loading || !content.trim()}
+              disabled={loading || (!content.trim() && !file)}
               className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-50 transition"
             >
-              {loading ? 'Publicando...' : 'Publicar'}
+              {loading ? 'Subiendo...' : 'Publicar'}
             </button>
           </div>
         </form>
@@ -181,7 +214,18 @@ export default function Home() {
               </span>
             </div>
 
-            <p className="text-sm text-gray-300 leading-relaxed">{post.content}</p>
+            {post.content && <p className="text-sm text-gray-300 leading-relaxed">{post.content}</p>}
+
+            {/* Renderizado multimedia (Fotos o Videos/Reels) */}
+            {post.media_url && (
+              <div className="rounded-xl overflow-hidden mt-3 border border-gray-800 bg-black">
+                {post.media_url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                  <video src={post.media_url} controls className="w-full max-h-[450px] object-contain" />
+                ) : (
+                  <img src={post.media_url} alt="Contenido multimedia" className="w-full max-h-[450px] object-cover" />
+                )}
+              </div>
+            )}
 
             {/* Acciones del Post */}
             <div className="flex items-center gap-4 pt-2 border-t border-gray-800/60">
