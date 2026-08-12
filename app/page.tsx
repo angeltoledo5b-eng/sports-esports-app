@@ -1,52 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { supabase } from './supabaseClient';
-import { useAuth } from './AuthContext';
-import Link from 'next/link';
-
-interface Comment {
-  id: string;
-  post_id: string;
-  user_name: string;
-  content: string;
-  created_at: string;
-}
 
 interface Post {
   id: string;
-  user_name: string;
-  game: string;
+  user_email: string;
   content: string;
-  media_url?: string | null;
-  likes: number;
+  media_url?: string;
+  media_type?: 'image' | 'video';
   created_at: string;
-  comments?: Comment[];
+  likes_count?: number;
 }
 
-export default function Home() {
-  const { user } = useAuth();
+export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [content, setContent] = useState('');
-  const [game, setGame] = useState('General');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
-  const [commentText, setCommentText] = useState('');
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPosts();
+    checkUser();
   }, []);
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setUserEmail(user.email || null);
+  };
 
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('posts')
-      .select('*, comments(*)')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error al cargar posts:', error);
-    } else if (data) {
+    if (!error && data) {
       setPosts(data);
     }
   };
@@ -56,228 +47,116 @@ export default function Home() {
     if (!content.trim() && !file) return;
 
     setLoading(true);
-    let mediaUrl: string | null = null;
+    let mediaUrl = '';
+    let mediaType: 'image' | 'video' | undefined;
 
-    // Subir imagen o video a Supabase Storage si seleccionó un archivo
-    if (file) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const { data, error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(fileName, file);
+    try {
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
 
-      if (uploadError) {
-        console.error('Error al subir multimedia:', uploadError);
-      } else if (data) {
-        const { data: publicData } = supabase.storage.from('media').getPublicUrl(fileName);
-        mediaUrl = publicData.publicUrl;
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('media')
+          .getPublicUrl(filePath);
+
+        mediaUrl = publicUrlData.publicUrl;
+        mediaType = file.type.startsWith('video') ? 'video' : 'image';
       }
-    }
 
-    const userName = user?.email ? user.email.split('@')[0] : 'Usuario';
+      const { error: insertError } = await supabase.from('posts').insert([
+        {
+          user_email: userEmail || 'Usuario Anónimo',
+          content,
+          media_url: mediaUrl || null,
+          media_type: mediaType || null,
+        },
+      ]);
 
-    const { error } = await supabase.from('posts').insert([
-      {
-        user_name: userName,
-        game,
-        content,
-        media_url: mediaUrl,
-        likes: 0,
-      },
-    ]);
+      if (insertError) throw insertError;
 
-    if (error) {
-      alert('Error al publicar: ' + error.message);
-    } else {
       setContent('');
       setFile(null);
       fetchPosts();
-    }
-    setLoading(false);
-  };
-
-  const handleLike = async (id: string, currentLikes: number) => {
-    const { error } = await supabase
-      .from('posts')
-      .update({ likes: currentLikes + 1 })
-      .eq('id', id);
-
-    if (!error) {
-      setPosts(posts.map((p) => (p.id === id ? { ...p, likes: (p.likes || 0) + 1 } : p)));
-    }
-  };
-
-  const handleAddComment = async (postId: string) => {
-    if (!commentText.trim() || !user) return;
-
-    const userName = user.email ? user.email.split('@')[0] : 'Usuario';
-
-    const { error } = await supabase.from('comments').insert([
-      {
-        post_id: postId,
-        user_name: userName,
-        content: commentText,
-      },
-    ]);
-
-    if (error) {
-      alert('Error al comentar: ' + error.message);
-    } else {
-      setCommentText('');
-      fetchPosts();
+    } catch (err: any) {
+      alert('Error al publicar: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
       {/* Formulario de publicación */}
-      {user ? (
-        <form onSubmit={handleCreatePost} className="bg-gray-900 border border-gray-800 p-5 rounded-2xl space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">
-              Publicando como <strong className="text-blue-400">@{user.email?.split('@')[0]}</strong>
-            </span>
-            <select
-              value={game}
-              onChange={(e) => setGame(e.target.value)}
-              className="bg-gray-950 border border-gray-800 text-xs text-gray-300 rounded-lg p-1.5 font-semibold"
-            >
-              <option value="General">💬 General</option>
-              <option value="Wild Rift">🎮 Wild Rift</option>
-              <option value="Fútbol 5">⚽ Fútbol 5</option>
-              <option value="League of Legends">⚔️ LoL</option>
-            </select>
-          </div>
-
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-lg">
+        <form onSubmit={handleCreatePost} className="space-y-3">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="¿Qué quieres compartir hoy? (Puedes adjuntar foto o Reel video)"
-            className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition resize-none h-24"
+            placeholder="¿Qué está pasando en el mundo del deporte?"
+            className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none h-20"
           />
 
-          <div className="flex items-center justify-between pt-2">
-            {/* Input de archivo multimedia (Fotos/Videos Reels) */}
-            <label className="flex items-center gap-2 cursor-pointer bg-gray-950 border border-gray-800 px-3 py-1.5 rounded-xl text-xs text-gray-300 hover:border-gray-700 transition">
-              📷 <span>{file ? file.name.substring(0, 15) + '...' : 'Adjuntar Imagen / Video'}</span>
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-                className="hidden"
-              />
-            </label>
+          <div className="flex items-center justify-between">
+            <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-800 file:text-gray-200 hover:file:bg-gray-700 cursor-pointer"
+            />
 
             <button
               type="submit"
-              disabled={loading || (!content.trim() && !file)}
-              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-50 transition"
+              disabled={loading}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-xs rounded-xl hover:opacity-90 transition disabled:opacity-50"
             >
-              {loading ? 'Subiendo...' : 'Publicar'}
+              {loading ? 'Publicando...' : 'Publicar'}
             </button>
           </div>
         </form>
-      ) : (
-        <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-center space-y-3">
-          <h2 className="text-lg font-bold text-white">¡Únete a la comunidad de SportsHub!</h2>
-          <p className="text-xs text-gray-400">
-            Inicia sesión para interactuar con jugadores, inscribirte en torneos y compartir tus mejores momentos.
-          </p>
-          <Link
-            href="/login"
-            className="inline-block px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition"
-          >
-            Iniciar Sesión / Registrarse
-          </Link>
-        </div>
-      )}
+      </div>
 
-      {/* Lista de Publicaciones */}
+      {/* Feed de publicaciones */}
       <div className="space-y-4">
         {posts.map((post) => (
-          <div key={post.id} className="bg-gray-900 border border-gray-800 p-5 rounded-2xl space-y-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
-                  {post.user_name?.substring(0, 2).toUpperCase() || 'US'}
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">{post.user_name}</h4>
-                  <span className="text-[10px] text-gray-500">
-                    {new Date(post.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              <span className="text-[10px] font-bold px-2.5 py-1 bg-gray-950 border border-gray-800 text-purple-400 rounded-lg">
-                {post.game}
+          <div key={post.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-blue-400">{post.user_email}</span>
+              <span className="text-[10px] text-gray-500">
+                {new Date(post.created_at).toLocaleDateString()}
               </span>
             </div>
 
-            {post.content && <p className="text-sm text-gray-300 leading-relaxed">{post.content}</p>}
+            {post.content && (
+              <p className="text-xs text-gray-200 leading-relaxed">{post.content}</p>
+            )}
 
-            {/* Renderizado multimedia (Fotos o Videos/Reels) */}
-            {post.media_url && (
-              <div className="rounded-xl overflow-hidden mt-3 border border-gray-800 bg-black">
-                {post.media_url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                  <video src={post.media_url} controls className="w-full max-h-[450px] object-contain" />
-                ) : (
-                  <img src={post.media_url} alt="Contenido multimedia" className="w-full max-h-[450px] object-cover" />
-                )}
+            {/* Media optimizado para Next.js sin warning */}
+            {post.media_url && post.media_type === 'image' && (
+              <div className="relative w-full h-auto overflow-hidden rounded-xl border border-gray-800">
+                <Image
+                  src={post.media_url}
+                  alt="Contenido de publicación"
+                  width={600}
+                  height={400}
+                  className="w-full max-h-[450px] object-cover"
+                  unoptimized
+                />
               </div>
             )}
 
-            {/* Acciones del Post */}
-            <div className="flex items-center gap-4 pt-2 border-t border-gray-800/60">
-              <button
-                onClick={() => handleLike(post.id, post.likes || 0)}
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-400 transition font-medium"
-              >
-                ❤️ <span>{post.likes || 0}</span>
-              </button>
-
-              <button
-                onClick={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)}
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-400 transition font-medium"
-              >
-                💬 <span>{post.comments?.length || 0} Comentarios</span>
-              </button>
-            </div>
-
-            {/* Sección de Comentarios Expansible */}
-            {activeCommentPostId === post.id && (
-              <div className="pt-3 space-y-3 border-t border-gray-800/40">
-                <div className="space-y-2">
-                  {post.comments && post.comments.length > 0 ? (
-                    post.comments.map((c) => (
-                      <div key={c.id} className="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80 text-xs space-y-1">
-                        <span className="font-bold text-blue-400">@{c.user_name}</span>
-                        <p className="text-gray-300">{c.content}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-gray-500 italic">No hay comentarios aún. ¡Sé el primero!</p>
-                  )}
-                </div>
-
-                {user && (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Escribe un comentario..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
-                    />
-                    <button
-                      onClick={() => handleAddComment(post.id)}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition"
-                    >
-                      Enviar
-                    </button>
-                  </div>
-                )}
-              </div>
+            {post.media_url && post.media_type === 'video' && (
+              <video
+                src={post.media_url}
+                controls
+                className="w-full max-h-[450px] rounded-xl border border-gray-800 bg-black"
+              />
             )}
           </div>
         ))}
